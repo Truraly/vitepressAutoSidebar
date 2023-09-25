@@ -1,0 +1,7 @@
+/.npmignore
+/node_modules
+/package-lock.json
+# /.gitignore
+# /index.ts
+# /tsconfig.json
+/src

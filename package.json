@@ -1,0 +1,17 @@
+{
+  "name": "vitepressautosidebar",
+  "version": "1.0.0",
+  "description": "vitepress侧边栏自动生成工具",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Truraly",
+  "license": "TIM",
+  "devDependencies": {
+    "@types/node": "^20.6.5",
+    "vitepress": "^1.0.0-rc.20"
+  }
+}
