@@ -114,9 +114,8 @@ export default function getSidebar(
           }
             // console.log("obj", obj);
         }
-
         // 将文件夹名和文件夹路径添加到sidebarnode中
-        // sidebarnode.push(obj);
+        sidebarnode.push(obj);
       } else {
         // 获取文件后缀
         let extname = path.extname(filePath);
