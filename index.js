@@ -1,25 +1,33 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 /**
  * 默认忽略的文件夹和文件
  */
-const ban_ = [
-    "node_modules",
-    ".vitepress",
-];
+const ban_ = ["node_modules", ".vitepress"];
 /**
  * 根据文件目录生成侧边栏
  * @param path 需要生成侧边栏的文件目录
  * @param basePath 项目根目录
- * @param ban 忽略的文件夹和文件
+ * @param ban 忽略的文件夹和文件（文件需要带后缀）
  */
-export default function getSidebar(path_, basePath, ban = ban_) {
+export default function getSidebar(path_, basePath, ban = []) {
+    // 添加默认忽略的文件夹和文件
+    ban.push(...ban_);
     // console.log("当前文件夹:", path_)
     let sidebarnode = [];
     // 获取文件夹下的所有文件以及文件夹
     let files = fs.readdirSync(path_);
-    // 排序
-    files.sort((a, b) => {
+    files
+        // 过滤文件夹和文件
+        .filter((file) => {
+        if (file.indexOf(".") === 0)
+            return false;
+        if (ban.some((item) => file.indexOf(item) != -1))
+            return false;
+        return true;
+    })
+        // 排序
+        .sort((a, b) => {
         // 数字开头优先
         if (/^\d+/.test(a) && !/^\d+/.test(b))
             return -1;
@@ -33,80 +41,93 @@ export default function getSidebar(path_, basePath, ban = ban_) {
             // 其他按字母排序
             return a.localeCompare(b);
         }
-    });
-    // console.log("排序后:", files)
-    // 遍历文件夹
-    files.forEach((file) => {
+    })
+        // 遍历文件夹
+        .forEach((file) => {
         var _a, _b, _c, _d;
+        // console.log("当前文件:", file);
         // 获取文件夹或文件的路径
         let filePath = path.join(path_, file);
         // 获取文件信息
         let stat = fs.statSync(filePath);
         // 判断是否为文件夹
         if (stat.isDirectory()) {
-            // 是否hidden开头
-            if (file.indexOf(".") == 0) {
+            // 获取子文件夹和文件
+            let sidebar__ = getSidebar(filePath, basePath, ban);
+            // 如果子文件夹和文件为空,则不添加
+            if (sidebar__.length === 0)
                 return;
-            }
-            // 判断是否为忽略的文件夹
-            if (ban.indexOf(file) == -1) {
-                // 获取子文件夹和文件
-                let sidebar__ = getSidebar(filePath, basePath, ban);
-                // 如果子文件夹和文件为空,则不添加
-                if (sidebar__.length == 0)
-                    return;
-                // console.log("sidebar__", sidebar__)
-                // 生成sidebar对象
-                let obj = {
-                    items: sidebar__,
-                    // 如果文件夹名以-结尾,则折叠
-                    collapsed: /\-$/.test(file)
-                };
-                obj.text = file.replace(/\-$/, "").replace(/^\d+\./, "");
-                // console.log("obj", obj)
-                // console.log("obj.items", obj.items)
-                // 查询是否有READMD.md
-                let readmd = (_a = obj.items) === null || _a === void 0 ? void 0 : _a.find((item) => { return item.text == "README" || item.text == "readme"; });
-                // console.log("readmd", readmd)
-                // 如果有
-                if (readmd) {
-                    // console.log(readmd)
-                    // 将文件夹名和文件夹路径添加到sidebarnode中
-                    obj.link = readmd.link;
-                    obj.text += "(README)";
-                    // 如果只有一个README
-                    if (((_b = obj.items) === null || _b === void 0 ? void 0 : _b.length) == 1) {
-                        // 删除items
-                        delete obj.items;
-                    }
-                    else {
-                        // 删除README
-                        (_c = obj.items) === null || _c === void 0 ? void 0 : _c.splice((_d = obj.items) === null || _d === void 0 ? void 0 : _d.indexOf(readmd), 1);
-                    }
-                }
+            // 生成sidebar对象
+            let obj = {
+                items: sidebar__,
+                // 如果文件夹名以-结尾,则折叠
+                collapsed: /\-$/.test(file),
+            };
+            //
+            obj.text = file.replace(/\-$/, "").replace(/^\d+\./, "");
+            // 查询是否有READMD.md
+            let readmd = (_a = obj.items) === null || _a === void 0 ? void 0 : _a.find((item) => {
+                return item.text === "README" || item.text === "readme";
+            });
+            // 如果有
+            if (readmd) {
                 // 将文件夹名和文件夹路径添加到sidebarnode中
-                sidebarnode.push(obj);
+                obj.link = readmd.link;
+                obj.text += "(README)";
+                // 删除README
+                (_b = obj.items) === null || _b === void 0 ? void 0 : _b.splice((_c = obj.items) === null || _c === void 0 ? void 0 : _c.indexOf(readmd), 1);
             }
+            // 查询目录下是否有sidebar.json
+            let flist = fs.readdirSync(filePath);
+            // console.log("flist", flist)
+            // 如果有sidebar.json
+            if (flist.indexOf("sidebar.json") != -1) {
+                //   console.log("有sidebar.json");
+                try {
+                    // 读取sidebar.json
+                    let sidebarjson = fs.readFileSync(path.join(filePath, "sidebar.json"), "utf-8");
+                    // 将sidebar.json转为对象
+                    let sidebarjson_ = JSON.parse(sidebarjson);
+                    // 如果有配置的title,则使用配置的title
+                    obj.text = sidebarjson_.title || obj.text;
+                    if (Array.isArray(sidebarjson_.arrange)) {
+                        // 按照配置的顺序排序
+                        (_d = obj.items) === null || _d === void 0 ? void 0 : _d.sort((a, b) => {
+                            var _a, _b;
+                            let indexa = (_a = sidebarjson_.arrange) === null || _a === void 0 ? void 0 : _a.indexOf(a.text);
+                            let indexb = (_b = sidebarjson_.arrange) === null || _b === void 0 ? void 0 : _b.indexOf(b.text);
+                            if (indexa === -1)
+                                indexa = 999;
+                            if (indexb === -1)
+                                indexb = 999;
+                            return indexa - indexb;
+                        });
+                    }
+                    // console.log("sidebarjson_", sidebarjson_);
+                    // 如果有配置的collapsed,则使用配置的collapsed
+                    obj.collapsed =
+                        (sidebarjson_.collapsed === true ? true : false) || obj.collapsed;
+                }
+                catch (e) {
+                    console.log(e);
+                }
+                console.log("obj", obj);
+            }
+            // 将文件夹名和文件夹路径添加到sidebarnode中
+            // sidebarnode.push(obj);
         }
         else {
-            // 判断是否为忽略的文件
-            if (ban.indexOf(file) == -1) {
-                // 获取文件后缀
-                let extname = path.extname(filePath);
-                // 是否为hidden开头
-                if (file.indexOf(".") == 0) {
-                    return;
-                }
-                // 判断是否为md文件
-                if (extname == ".md") {
-                    // 获取文件名
-                    let filename = path.basename(filePath, extname);
-                    // 将文件名和文件路径添加到sidebar中
-                    sidebarnode.push({
-                        text: filename.replace(/^\d+\./, ""),
-                        link: filePath.replace(basePath, "").replace(".md", "")
-                    });
-                }
+            // 获取文件后缀
+            let extname = path.extname(filePath);
+            // 判断是否为md文件
+            if (extname === ".md") {
+                // 获取文件名
+                let filename = path.basename(filePath, extname);
+                // 将文件名和文件路径添加到sidebar中
+                sidebarnode.push({
+                    text: filename.replace(/^\d+\./, ""),
+                    link: filePath.replace(basePath, "").replace(".md", ""),
+                });
             }
         }
     });
